@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>辦公室巡檢打卡</title>
+    <style>
+        body { 
+            font-family: "Microsoft JhengHei", sans-serif; 
+            padding: 20px; 
+            text-align: center; 
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; }
+        
+        .status { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 8px;
+            background: #e9ecef; 
+            font-size: 16px;
+            line-height: 1.6;
+            text-align: left;
+        }
+        
+        button { 
+            width: 100%;
+            padding: 15px; 
+            font-size: 18px; 
+            font-weight: bold;
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: background 0.3s;
+        }
+        button:active { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .success { color: #28a745; font-weight: bold; font-size: 1.2em; display: block; text-align: center; margin-top: 10px;}
+        .fail { color: #dc3545; font-weight: bold; font-size: 1.2em; display: block; text-align: center; margin-top: 10px;}
+        
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px;}
+        .info-label { color: #777; }
+        .info-val { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📍 辦公室巡檢系統</h2>
+        <p>請抵達指定位置後，點擊下方按鈕進行打卡確認。</p>
+        
+        <div id="result" class="status">
+            <div style="text-align:center; color:#888;">等待操作...</div>
+        </div>
+        
+        <button id="checkBtn" onclick="checkLocation()">📍 我已抵達，開始打卡</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // 📍 設定區 (您剛剛採樣的座標)
+        // ==========================================
+        const TARGET_LAT = 24.73529; 
+        const TARGET_LNG = 121.75624;
+        
+        // 允許的誤差範圍 (單位：公尺)
+        // 辦公室室內訊號可能飄移，建議設 50-80 公尺比較好通過
+        const ALLOWED_DISTANCE = 60; 
+        // ==========================================
+
+        function checkLocation() {
+            const resultDiv = document.getElementById("result");
+            const btn = document.getElementById("checkBtn");
+
+            if (!navigator.geolocation) {
+                resultDiv.innerHTML = "您的裝置不支援定位功能。";
+                return;
+            }
+
+            resultDiv.innerHTML = '<div style="text-align:center;">📡 正在衛星定位中...<br><small>請稍候約 3-5 秒</small></div>';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const currentLat = position.coords.latitude;
+                    const currentLng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy; // 手機 GPS 的精確度半徑
+
+                    // 計算與目標的距離
+                    const distance = getDistanceFromLatLonInM(currentLat, currentLng, TARGET_LAT, TARGET_LNG);
+
+                    // 顯示詳細資訊
+                    let htmlContent = `
+                        <div class="info-row"><span class="info-label">目標距離</span> <span class="info-val">${distance.toFixed(1)} 公尺</span></div>
+                        <div class="info-row"><span class="info-label">GPS 誤差</span> <span class="info-val">±${accuracy.toFixed(1)} 公尺</span></div>
+                    `;
+
+                    // 判斷是否合格
+                    // 邏輯：距離要小於允許值
+                    if (distance <= ALLOWED_DISTANCE) {
+                        htmlContent += `<span class="success">✅ 打卡成功！</span>`;
+                        htmlContent += `<div style="text-align:center; font-size:14px; color:#28a745; margin-top:5px;">您已在指定範圍內</div>`;
+                    } else {
+                        htmlContent += `<span class="fail">❌ 打卡失敗</span>`;
+                        htmlContent += `<div style="text-align:center; font-size:14px; color:#dc3545; margin-top:5px;">您距離目標太遠，請靠近後重試。</div>`;
+                    }
+
+                    resultDiv.innerHTML = htmlContent;
+                    btn.disabled = false;
+                },
+                (error) => {
+                    let errorMsg = "定位失敗";
+                    if (error.code === 1) errorMsg = "請允許瀏覽器存取位置權限";
+                    else if (error.code === 2) errorMsg = "GPS 訊號微弱 (請靠近窗戶或走到戶外)";
+                    else if (error.code === 3) errorMsg = "定位請求超時";
+                    
+                    resultDiv.innerHTML = `<div style="text-align:center; color:red;">⚠️ ${errorMsg}</div>`;
+                    btn.disabled = false;
+                },
+                {
+                    enableHighAccuracy: true, 
+                    timeout: 10000,          
+                    maximumAge: 0            
+                }
+            );
+        }
+
+        // 計算距離公式 (Haversine)
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            var R = 6371000; 
+            var dLat = deg2rad(lat2 - lat1);
+            var dLon = deg2rad(lon2 - lon1);
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+    </script>
+</body>
+</html>
