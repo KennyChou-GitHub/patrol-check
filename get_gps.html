@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📍 取得目前位置座標</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; text-align: center; background-color: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; }
+        .coord-box { font-size: 24px; font-weight: bold; color: #333; margin: 15px 0; padding: 10px; background: #eef; border-radius: 5px; word-break: break-all;}
+        .label { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .accuracy { font-size: 14px; color: #d9534f; margin-bottom: 20px; }
+        
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 18px; 
+            margin-top: 10px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+        }
+        .btn-get { background-color: #007bff; color: white; }
+        .btn-copy { background-color: #28a745; color: white; display: none; } /* 預設隱藏 */
+        button:disabled { background-color: #ccc; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>📍 座標採樣工具</h2>
+        <p>請至巡檢點位現場，按下按鈕取得座標。</p>
+
+        <div class="label">緯度 (Latitude) / 經度 (Longitude)</div>
+        <div id="displayCoords" class="coord-box">---</div>
+        <div id="accuracyDisplay" class="accuracy"></div>
+
+        <button id="getBtn" class="btn-get" onclick="getLocation()">📡 取得目前位置</button>
+        <button id="copyBtn" class="btn-copy" onclick="copyToClipboard()">📋 複製座標數值</button>
+    </div>
+
+    <script>
+        let currentLat = 0;
+        let currentLng = 0;
+
+        function getLocation() {
+            const display = document.getElementById("displayCoords");
+            const accDisplay = document.getElementById("accuracyDisplay");
+            const getBtn = document.getElementById("getBtn");
+            const copyBtn = document.getElementById("copyBtn");
+
+            if (!navigator.geolocation) {
+                alert("您的瀏覽器不支援定位功能");
+                return;
+            }
+
+            display.innerText = "定位中...";
+            accDisplay.innerText = "";
+            getBtn.disabled = true;
+            copyBtn.style.display = "none";
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLat = position.coords.latitude;
+                    currentLng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+
+                    // 顯示數據 (取小數點後 6 位已非常精準)
+                    display.innerText = `${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
+                    
+                    // 顯示誤差值提醒
+                    accDisplay.innerHTML = `GPS 誤差半徑：約 ${accuracy.toFixed(1)} 公尺<br>(若誤差大於 20m 建議重抓)`;
+
+                    getBtn.disabled = false;
+                    getBtn.innerText = "📡 重新定位";
+                    copyBtn.style.display = "block"; // 顯示複製按鈕
+                },
+                (error) => {
+                    alert("無法取得位置，請確認已開啟 GPS 權限。");
+                    display.innerText = "定位失敗";
+                    getBtn.disabled = false;
+                },
+                {
+                    enableHighAccuracy: true, // 開啟高精確度模式
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function copyToClipboard() {
+            // 格式化成程式碼需要的格式
+            const textToCopy = `const TARGET_LAT = ${currentLat.toFixed(6)};\nconst TARGET_LNG = ${currentLng.toFixed(6)};`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("已複製！請貼上到您的程式碼中。\n\n" + textToCopy);
+            }).catch(err => {
+                alert("複製失敗，請手動選取文字複製");
+            });
+        }
+    </script>
+
+</body>
+</html>
