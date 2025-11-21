@@ -3,156 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>辦公室巡檢打卡</title>
+    <title>巡檢打卡系統</title>
     <style>
-        body { 
-            font-family: "Microsoft JhengHei", sans-serif; 
-            padding: 20px; 
-            text-align: center; 
-            background-color: #f0f2f5;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            max-width: 400px;
-            margin: 0 auto;
-        }
-        h2 { color: #333; margin-bottom: 10px; }
-        p { color: #666; }
-        
-        .status { 
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 8px;
-            background: #e9ecef; 
-            font-size: 16px;
-            line-height: 1.6;
-            text-align: left;
-        }
-        
-        button { 
-            width: 100%;
-            padding: 15px; 
-            font-size: 18px; 
-            font-weight: bold;
-            background-color: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            transition: background 0.3s;
-        }
-        button:active { background-color: #0056b3; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-
-        .success { color: #28a745; font-weight: bold; font-size: 1.2em; display: block; text-align: center; margin-top: 10px;}
-        .fail { color: #dc3545; font-weight: bold; font-size: 1.2em; display: block; text-align: center; margin-top: 10px;}
-        
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px;}
-        .info-label { color: #777; }
-        .info-val { font-weight: bold; }
+        body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; text-align: center; background-color: #f8f9fa; }
+        .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        h2 { margin-top: 0; color: #333; }
+        .location-tag { background: #e9ecef; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-bottom: 15px; font-weight: bold; color: #495057;}
+        .status { margin: 20px 0; padding: 15px; background: #f1f3f5; border-radius: 8px; text-align: left; font-size: 0.95em; line-height: 1.6; }
+        button { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #0d6efd; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        button:disabled { background-color: #adb5bd; }
+        .success { color: #198754; font-weight: bold; text-align: center; display: block; margin-top: 10px;}
+        .fail { color: #dc3545; font-weight: bold; text-align: center; display: block; margin-top: 10px;}
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>📍 辦公室巡檢系統</h2>
-        <p>請抵達指定位置後，點擊下方按鈕進行打卡確認。</p>
+        <h2>📍 巡檢打卡</h2>
         
-        <div id="result" class="status">
-            <div style="text-align:center; color:#888;">等待操作...</div>
-        </div>
+        <div id="spotName" class="location-tag">未指定點位</div>
+
+        <div id="result" class="status">請掃描現場 QR Code 開啟此頁面</div>
         
-        <button id="checkBtn" onclick="checkLocation()">📍 我已抵達，開始打卡</button>
+        <button id="checkBtn" onclick="checkLocation()">📍 確認打卡</button>
     </div>
 
     <script>
         // ==========================================
-        // 📍 設定區 (您剛剛採樣的座標)
+        // 1. 設定目標經緯度 (大樓的中心點)
         // ==========================================
         const TARGET_LAT = 24.73529; 
         const TARGET_LNG = 121.75624;
-        
-        // 允許的誤差範圍 (單位：公尺)
-        // 辦公室室內訊號可能飄移，建議設 50-80 公尺比較好通過
-        const ALLOWED_DISTANCE = 60; 
+        const ALLOWED_DISTANCE = 80; // 範圍設大一點，涵蓋整棟樓
         // ==========================================
 
-        function checkLocation() {
-            const resultDiv = document.getElementById("result");
-            const btn = document.getElementById("checkBtn");
+        // 2. 取得網址參數 (判斷是哪一層樓)
+        const urlParams = new URLSearchParams(window.location.search);
+        const spotID = urlParams.get('id'); // 讀取網址中的 ?id=...
 
+        // 定義點位名稱對照表
+        const spots = {
+            "1F_LOBBY": "1F 大廳門口",
+            "3F_OFFICE": "3F 辦公室",
+            "5F_MEETING": "5F 會議室",
+            "B1_WAREHOUSE": "B1 倉庫"
+        };
+
+        // 初始化畫面
+        const spotDisplay = document.getElementById("spotName");
+        const resultDiv = document.getElementById("result");
+        const btn = document.getElementById("checkBtn");
+
+        if (spotID && spots[spotID]) {
+            spotDisplay.innerText = "目標：" + spots[spotID];
+            resultDiv.innerText = "點位識別成功，請點擊按鈕驗證位置。";
+        } else {
+            spotDisplay.innerText = "⚠️ 無效的點位";
+            spotDisplay.style.background = "#f8d7da";
+            spotDisplay.style.color = "#721c24";
+            resultDiv.innerHTML = "請務必掃描牆上的 QR Code 進入，<br>不可直接開啟網頁。";
+            btn.disabled = true; // 鎖住按鈕
+        }
+
+        function checkLocation() {
             if (!navigator.geolocation) {
-                resultDiv.innerHTML = "您的裝置不支援定位功能。";
+                resultDiv.innerHTML = "不支援定位功能";
                 return;
             }
 
-            resultDiv.innerHTML = '<div style="text-align:center;">📡 正在衛星定位中...<br><small>請稍候約 3-5 秒</small></div>';
+            resultDiv.innerHTML = "📡 定位確認中...";
             btn.disabled = true;
 
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const currentLat = position.coords.latitude;
                     const currentLng = position.coords.longitude;
-                    const accuracy = position.coords.accuracy; // 手機 GPS 的精確度半徑
-
-                    // 計算與目標的距離
                     const distance = getDistanceFromLatLonInM(currentLat, currentLng, TARGET_LAT, TARGET_LNG);
 
-                    // 顯示詳細資訊
-                    let htmlContent = `
-                        <div class="info-row"><span class="info-label">目標距離</span> <span class="info-val">${distance.toFixed(1)} 公尺</span></div>
-                        <div class="info-row"><span class="info-label">GPS 誤差</span> <span class="info-val">±${accuracy.toFixed(1)} 公尺</span></div>
-                    `;
+                    let msg = `GPS 距離誤差：${distance.toFixed(1)} 公尺<br>`;
 
-                    // 判斷是否合格
-                    // 邏輯：距離要小於允許值
+                    // 雙重驗證邏輯
                     if (distance <= ALLOWED_DISTANCE) {
-                        htmlContent += `<span class="success">✅ 打卡成功！</span>`;
-                        htmlContent += `<div style="text-align:center; font-size:14px; color:#28a745; margin-top:5px;">您已在指定範圍內</div>`;
+                        // 1. GPS 通過
+                        msg += `<span class="success">✅ 打卡成功！</span>`;
+                        msg += `<div style="text-align:center; margin-top:5px;">已完成 <b>${spots[spotID]}</b> 巡檢</div>`;
+                        // 這裡可以未來擴充：把 spotID 和 時間 傳送到 Google Sheets
                     } else {
-                        htmlContent += `<span class="fail">❌ 打卡失敗</span>`;
-                        htmlContent += `<div style="text-align:center; font-size:14px; color:#dc3545; margin-top:5px;">您距離目標太遠，請靠近後重試。</div>`;
+                        // 2. GPS 失敗
+                        msg += `<span class="fail">❌ 打卡失敗</span>`;
+                        msg += `<div style="text-align:center; font-size:0.9em;">QR Code 正確，但您的 GPS 位置不在範圍內。<br>請確認是否在現場。</div>`;
                     }
 
-                    resultDiv.innerHTML = htmlContent;
-                    btn.disabled = false;
+                    resultDiv.innerHTML = msg;
+                    // 如果失敗，允許重試
+                    if (distance > ALLOWED_DISTANCE) btn.disabled = false; 
                 },
                 (error) => {
-                    let errorMsg = "定位失敗";
-                    if (error.code === 1) errorMsg = "請允許瀏覽器存取位置權限";
-                    else if (error.code === 2) errorMsg = "GPS 訊號微弱 (請靠近窗戶或走到戶外)";
-                    else if (error.code === 3) errorMsg = "定位請求超時";
-                    
-                    resultDiv.innerHTML = `<div style="text-align:center; color:red;">⚠️ ${errorMsg}</div>`;
+                    resultDiv.innerHTML = "<span class='fail'>無法取得定位，請檢查 GPS 權限</span>";
                     btn.disabled = false;
                 },
-                {
-                    enableHighAccuracy: true, 
-                    timeout: 10000,          
-                    maximumAge: 0            
-                }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
 
-        // 計算距離公式 (Haversine)
         function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
             var R = 6371000; 
             var dLat = deg2rad(lat2 - lat1);
             var dLon = deg2rad(lon2 - lon1);
-            var a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
         }
-
-        function deg2rad(deg) {
-            return deg * (Math.PI / 180);
-        }
+        function deg2rad(deg) { return deg * (Math.PI/180); }
     </script>
 </body>
 </html>
